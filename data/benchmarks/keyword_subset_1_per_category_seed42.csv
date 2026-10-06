@@ -1,0 +1,23 @@
+keyword,category,similarity_score
+fourier analysis,Accounting,0.77920604
+agronomy,Agricultural science,0.88452685
+tornadoes,Anthropology,0.71924514
+astrophysics,Astronomy,0.8985406
+natural selection,Biology,0.78423667
+trophic levels,Chemistry,0.69024724
+electron transport chain,Data engineering,0.6830892
+nextgeneration sequencing,Data science,0.7042347
+volcanology,Earth science,0.8345591
+energy policy,Economics,0.7863466
+el nino,Finance,0.7107764
+celestial mechanics,Mathematics and Logic,0.7278907
+mendelian genetics,Medicine,0.7756368
+hypothesis,Pedagogy,0.6997349
+schizophrenia,Pharmacy,0.8593203
+polymers,Physics,0.8027785
+behavioral science,Political science,0.7499197
+educational psychology,Psychology,0.87777436
+primatology,Sociology,0.85857564
+sequence alignment,Statistics,0.6081165
+hydraulics,Systems engineering,0.8303076
+computational social science,Systems science,0.90411216

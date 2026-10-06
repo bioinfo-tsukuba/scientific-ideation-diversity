@@ -1,0 +1,111 @@
+keyword,category,similarity_score
+fingerprint analysis,Accounting,0.76469886
+fourier analysis,Accounting,0.77920604
+hybridization,Accounting,0.8043793
+measurement,Accounting,0.849201
+reflection,Accounting,0.8649352
+agronomy,Agricultural science,0.88452685
+dairy science,Agricultural science,0.88512325
+mycology,Agricultural science,0.7891561
+nutritional science,Agricultural science,0.84947526
+plant hormones,Agricultural science,0.7654376
+archaeology,Anthropology,0.9246454
+chronobiology,Anthropology,0.7433646
+linguistic anthropology,Anthropology,0.90660655
+paleontology,Anthropology,0.79327196
+tornadoes,Anthropology,0.71924514
+amplitude,Astronomy,0.8229954
+galactic astronomy,Astronomy,0.8430847
+galaxies,Astronomy,0.80300725
+quasars,Astronomy,0.69905305
+satellites,Astronomy,0.79734594
+antimatter,Biology,0.76391876
+cancer biology,Biology,0.79041064
+cellular automata,Biology,0.8424964
+ecophysiology,Biology,0.80287397
+molecular evolution,Biology,0.76235276
+chemical safety,Chemistry,0.80326
+photochemistry,Chemistry,0.76938784
+physical chemistry,Chemistry,0.8199085
+radioisotopes,Chemistry,0.70123076
+trophic levels,Chemistry,0.69024724
+data structures,Data engineering,0.79281795
+glycomics,Data engineering,0.79688764
+highthroughput screening,Data engineering,0.6798655
+kmeans clustering,Data engineering,0.6801763
+unsupervised learning,Data engineering,0.79162794
+cladistics,Data science,0.70566237
+information retrieval,Data science,0.77095157
+learning analytics,Data science,0.76560926
+material science,Data science,0.8461708
+semantic web,Data science,0.81267405
+geology,Earth science,0.8367873
+geomatics,Earth science,0.8425353
+landslides,Earth science,0.7101032
+solar flares,Earth science,0.7136364
+subduction zones,Earth science,0.63009226
+econophysics,Economics,0.8322705
+energy economics,Economics,0.8696662
+natural capital,Economics,0.83467925
+probability,Economics,0.8318771
+science education,Economics,0.84379685
+graphene,Finance,0.7619049
+histology,Finance,0.8168267
+microscopy,Finance,0.792032
+reproducibility,Finance,0.8010891
+wireless communication,Finance,0.7957209
+bells theorem,Mathematics and Logic,0.745135
+differential equations,Mathematics and Logic,0.805172
+grovers algorithm,Mathematics and Logic,0.7141901
+set theory,Mathematics and Logic,0.8274849
+turing machines,Mathematics and Logic,0.79585767
+dietary supplements,Medicine,0.7192774
+endoflife care,Medicine,0.74053675
+genomic medicine,Medicine,0.8442179
+medical genetics,Medicine,0.8401029
+veterinary medicine,Medicine,0.84070444
+bibliometrics,Pedagogy,0.7794342
+constructivism,Pedagogy,0.7898091
+holography,Pedagogy,0.80317837
+hypothesis,Pedagogy,0.6997349
+mineralogy,Pedagogy,0.8009188
+extremophiles,Pharmacy,0.7565656
+keystone species,Pharmacy,0.62425464
+parkinsons disease,Pharmacy,0.73958147
+rheumatology,Pharmacy,0.8387252
+vaccination,Pharmacy,0.85067844
+batteries,Physics,0.80204624
+cosmic rays,Physics,0.82723546
+metamaterials,Physics,0.7772859
+quantum supremacy,Physics,0.6825555
+wave energy,Physics,0.73209655
+behavioral science,Political science,0.7499197
+hubbles law,Political science,0.75525117
+patent law,Political science,0.7557107
+science advocacy,Political science,0.86071914
+science journalism,Political science,0.87400794
+animal behavior,Psychology,0.7338524
+anxiety disorders,Psychology,0.7200345
+behavioral ecology,Psychology,0.7224031
+cognitive psychology,Psychology,0.84916174
+comparative psychology,Psychology,0.85128355
+community ecology,Sociology,0.68676996
+primatology,Sociology,0.85857564
+science museums,Sociology,0.8132186
+social networks,Sociology,0.77766144
+sociology,Sociology,0.99999964
+biostatistics,Statistics,0.7744765
+dna sequencing,Statistics,0.6706079
+instrumentation,Statistics,0.7961293
+principal component analysis,Statistics,0.73136914
+safety protocols,Statistics,0.7893873
+control systems,Systems engineering,0.79974467
+electrical engineering,Systems engineering,0.7725822
+electromagnetism,Systems engineering,0.8313978
+failure modes and effects analysis,Systems engineering,0.75526404
+grid computing,Systems engineering,0.82578385
+cognitive robotics,Systems science,0.83298814
+complex systems,Systems science,0.88769746
+ecological modeling,Systems science,0.77957785
+forensic science,Systems science,0.8442858
+systems biology,Systems science,0.91353744

@@ -1,0 +1,5 @@
+{
+  "fluency_critic_prompt": {
+    "description": "Here are two ideas submitted to \"Good Scientific Ideas\" Competition, which both relate to \"{{keyword}}\":\n\n# The first idea\n\n{{A}}\n\n# The second idea\n\n{{B}}\n\n\n# Question\n\nEvaluate the similarity between these two ideas that both relate to \"{{keyword}}\". Please choose the best answer:\n\nA. Completely different ideas addressing different problems, despite relating to the same keyword.\nB. Different ideas but addressing similar problems.\nC. Similar ideas addressing similar or identical problems.\nD. Academically identical ideas with the same core approach and problem statement.\n\nONLY ANSWER A/B/C/D, DO NOT EXPLAIN"
+  }
+}

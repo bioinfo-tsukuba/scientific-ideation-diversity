@@ -1,0 +1,27 @@
+{
+  "benchmark": "LiveIdeaBench",
+  "retrieved_at_utc": "2026-04-15T06:18:36Z",
+  "source": {
+    "type": "git_submodule",
+    "path": "external/liveideabench",
+    "commit": "fc95111c7920cb4ca02e27f5ab9730f3886ca07c"
+  },
+  "files": {
+    "keyword_metadata": {
+      "path": "external/liveideabench/csvs/keyword_classifications.csv",
+      "sha256": "41181150b5c18d4fb6258f07c58fe2b17c064e14da2589812f00ebe1775043d5"
+    },
+    "keyword_list": {
+      "path": "external/liveideabench/csvs/kws.csv",
+      "sha256": "b8c28c4f67b9c0583b102ca4cf66ed78e6ffd084a49bfec236139f02b44d335b"
+    },
+    "prompts": {
+      "path": "external/liveideabench/utils/prompts.json",
+      "sha256": "8aa2d48184953dbcfe340c418e69055d003cb94f86a95ce5bd8baddcbe81e11d"
+    }
+  },
+  "notes": [
+    "This manifest pins the benchmark input and prompt sources used from the LiveIdeaBench submodule.",
+    "category values in keyword_classifications.csv are auxiliary metadata, not gold labels."
+  ]
+}
