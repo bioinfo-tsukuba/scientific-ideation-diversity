@@ -11,6 +11,17 @@ the ICML 2026 AI for Science workshop: <https://icml.cc/virtual/2026/73442>
 
 > Frontier large language models (LLMs) performing extended chain-of-thought reasoning have advanced closed-ended task performance, motivating interest in AI Scientist systems that automate stages of the research pipeline. In such systems, scientific ideation matters as the most upstream stage, where the diversity of generated research ideas bounds the downstream search space. While reasoning effort improves closed-ended task accuracy, its effect on open-ended scientific ideation diversity has not been systematically measured. We generate over 300,000 ideas across three frontier LLMs (Claude Sonnet 4.6, GPT-5.4, Gemini 3.1 Pro), three reasoning-effort levels (low, medium, high), and the LiveIdeaBench keyword set, and evaluate diversity with lexical metrics, embedding-based metrics across three embedders, and a pairwise LLM-as-a-Judge rubric across two judge models (about 1,400,000 pairwise judgments). For comparison, we additionally evaluate two prompt-based diversification methods, Verbalized Sampling and String Seed of Thought, at the low and high reasoning-effort levels. Three main findings emerge. (1) Increasing reasoning effort raises within-keyword embedding pair distance by 13–36% from low to high, with only small changes in LLM-judged originality, feasibility, and clarity. (2) Verbalized Sampling at low effort matches or exceeds default-prompt high-effort embedding diversity on quartile-defined keyword subsets, while using 80–100% fewer reasoning tokens per idea, with no substantial decline in judged quality. (3) In embedding space, idea distributions produced by varying reasoning effort and by varying prompt are nearest-neighbor distinguishable across all model, embedder, and keyword-subset combinations. These results are consistent across embedders and judges, providing a large-scale empirical map of how reasoning effort and prompt-based diversification shift open-ended scientific-ideation diversity.
 
+## Main result
+
+<p align="center"><img src="docs/fig1.png" alt="Within-keyword embedding pair distance versus reasoning tokens per idea, for three models and three prompts" width="640"></p>
+
+**(a)** Raising reasoning effort from `low` to `high` increases within-keyword
+embedding pair distance by 13–36% in all three models (default prompt, full
+LiveIdeaBench). **(b)** Verbalized Sampling (VS) at `low` effort matches or exceeds
+default-prompt `high`-effort pair distance while using 80–100% fewer reasoning
+tokens per idea ($Q_1 \cup Q_4$ keyword subsets; symlog *x*-axis). Both panels use
+text-embedding-3-large. This is Fig. 1 of the paper.
+
 ## What is in this repository
 
 This repository contains the **code** for the paper: the generation pipeline,
@@ -97,7 +108,8 @@ Page numbers and DOI will be added once the DS 2026 proceedings are published.
   title     = {On the Effects of Reasoning Effort and Prompt-Based Diversification
                on Scientific Ideation Diversity},
   author    = {Chinen, Yu and Ozaki, Haruka},
-  booktitle = {Discovery Science: 29th International Conference, DS 2026, Mainz, Germany},
+  booktitle = {Discovery Science: 29th International Conference, DS 2026,
+               Mainz, Germany, October 5--9, 2026, Proceedings},
   series    = {Lecture Notes in Computer Science},
   publisher = {Springer},
   year      = {2026},
