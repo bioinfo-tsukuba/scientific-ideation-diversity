@@ -17,24 +17,44 @@ Output layout under ``--out-dir``::
     errors/effort-axis/<model>.errors.jsonl.gz
     errors/prompt-axis/<cell>.errors.jsonl.gz
     embeddings/effort-axis/<model>/<embedder>/<name>.npy
+    embeddings/effort-axis/<model>/<embedder>/row_keys.jsonl.gz
     embeddings/prompt-axis/<cell>/<embedder>/<name>.npy
+    embeddings/prompt-axis/<cell>/<embedder>/row_keys.jsonl.gz
 
 JSONL files are stream-copied verbatim into a gzip stream (no record is parsed or
-rewritten). ``.npy`` embedding arrays are re-saved, downcasting float64 to
-float32; any other dtype is passed through unchanged.
+rewritten), with one exception: when a run has a ``backfill_successes.jsonl``
+(records recovered by a ``--resume-generation-output-dir`` pass), the published
+ideas file is ``samples.jsonl`` followed by every backfill line whose sample key
+is not already present -- the same merge + dedup as
+``src.artifacts.load_run_sample_records``, with the original lines kept byte for
+byte. ``.npy`` embedding arrays are re-saved, downcasting float64 to float32;
+any other dtype is passed through unchanged.
+
+``row_keys.jsonl.gz`` records, for each row of the embedder's ``embeddings*.npy``
+(all arrays in one embedder directory share the row order), the sample key
+``{category, keyword, prompt_style, effort, sample_index}`` taken from that
+embedder's own ``samples.jsonl``. It is what lets
+``tools/materialize_hf_dataset.py`` rebuild a per-embedder ``samples.jsonl`` in
+array row order, including the arrays that cover only a subset of the run's
+samples (e.g. GPT-5.4 prompt-axis SPECTER2, which omits ``bioterrorism``).
+Gzip headers carry no timestamp, so re-running the packer is byte-reproducible.
 
 Usage::
 
     python tools/package_hf_dataset.py                      # dry run (default)
     python tools/package_hf_dataset.py --no-dry-run --out-dir ./hf_dataset_out
+    python tools/package_hf_dataset.py --no-dry-run --categories ideas row-keys ...  # partial rebuild
 """
 
 from __future__ import annotations
 
 import argparse
 import gzip
+import json
 import re
 import shutil
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -77,7 +97,13 @@ QUALITY_JUDGE_PREFIX = "llm_judge_quality_"
 DIVERSITY_JUDGE_PREFIX = "llm_judge_"
 
 COPY_BUFFER_BYTES = 1 << 22  # 4 MiB
-CATEGORIES: tuple[str, ...] = ("ideas", "judge", "errors", "embeddings")
+CATEGORIES: tuple[str, ...] = ("ideas", "judge", "errors", "embeddings", "row-keys")
+
+# Sample identity, as in ``src.artifacts.ROW_KEY_FIELDS``; the dedup key of
+# ``load_run_sample_records`` is the same tuple without ``category``.
+ROW_KEY_FIELDS: tuple[str, ...] = ("category", "keyword", "prompt_style", "effort", "sample_index")
+DEDUP_KEY_FIELDS: tuple[str, ...] = ("keyword", "prompt_style", "effort", "sample_index")
+BACKFILL_FILENAME = "backfill_successes.jsonl"
 
 
 @dataclass(frozen=True)
@@ -86,8 +112,9 @@ class PlannedFile:
 
     source: Path
     dest_rel: Path
-    kind: str  # "jsonl-gz" or "npy"
+    kind: str  # "jsonl-gz", "jsonl-merge-gz", "row-keys" or "npy"
     category: str  # one of CATEGORIES
+    extra_source: Path | None = None  # backfill file (merge) or embeddings.npy (row-keys)
 
     @property
     def source_bytes(self) -> int:
@@ -100,20 +127,23 @@ def axis_dir(axis: str) -> str:
 
 
 def plan_ideas(run_dir: Path, axis: str, public_name: str) -> list[PlannedFile]:
-    """Plan the top-level ``samples.jsonl``.
+    """Plan the top-level ``samples.jsonl`` (merged with ``backfill_successes.jsonl``).
 
     Only the run's top-level copy is taken; each embedder subdirectory holds a
-    duplicate ``samples.jsonl`` which is deliberately skipped.
+    re-ordered copy of the same records which is not published -- its row order
+    is published instead as ``row_keys.jsonl.gz`` (see :func:`plan_row_keys`).
     """
     samples = run_dir / "samples.jsonl"
     if not samples.is_file():
         return []
+    backfill = run_dir / BACKFILL_FILENAME
     return [
         PlannedFile(
             source=samples,
             dest_rel=Path("ideas") / axis_dir(axis) / f"{public_name}.jsonl.gz",
-            kind="jsonl-gz",
+            kind="jsonl-merge-gz" if backfill.is_file() else "jsonl-gz",
             category="ideas",
+            extra_source=backfill if backfill.is_file() else None,
         )
     ]
 
@@ -220,6 +250,27 @@ def plan_embeddings(run_dir: Path, axis: str, public_name: str) -> list[PlannedF
     return planned
 
 
+def plan_row_keys(run_dir: Path, axis: str, public_name: str) -> list[PlannedFile]:
+    """Plan ``row_keys.jsonl.gz`` for every embedder directory with an ``embeddings.npy``."""
+    planned: list[PlannedFile] = []
+    for embedder in EMBEDDER_DIRS:
+        embedder_dir = run_dir / embedder
+        samples = embedder_dir / "samples.jsonl"
+        npy = embedder_dir / "embeddings.npy"
+        if not (samples.is_file() and npy.is_file()):
+            continue
+        planned.append(
+            PlannedFile(
+                source=samples,
+                dest_rel=Path("embeddings") / axis_dir(axis) / public_name / embedder / "row_keys.jsonl.gz",
+                kind="row-keys",
+                category="row-keys",
+                extra_source=npy,
+            )
+        )
+    return planned
+
+
 def plan_run(run_dir: Path, axis: str, public_name: str) -> list[PlannedFile]:
     """Plan every public artifact derived from a single run directory."""
     return (
@@ -227,6 +278,7 @@ def plan_run(run_dir: Path, axis: str, public_name: str) -> list[PlannedFile]:
         + plan_judges(run_dir, axis, public_name)
         + plan_generation_errors(run_dir, axis, public_name)
         + plan_embeddings(run_dir, axis, public_name)
+        + plan_row_keys(run_dir, axis, public_name)
     )
 
 
@@ -250,11 +302,67 @@ def build_plan(source_root: Path) -> list[PlannedFile]:
     return planned
 
 
+@contextmanager
+def _open_gz_for_write(dest: Path) -> Iterator[gzip.GzipFile]:
+    """Gzip writer with an empty filename and zero mtime in the header (reproducible bytes)."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with dest.open("wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as out:
+        yield out
+
+
 def write_jsonl_gz(source: Path, dest: Path) -> None:
     """Stream-copy a JSONL file into a gzip stream, byte for byte."""
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    with source.open("rb") as src, gzip.open(dest, "wb") as out:
+    with source.open("rb") as src, _open_gz_for_write(dest) as out:
         shutil.copyfileobj(src, out, COPY_BUFFER_BYTES)
+
+
+def _key(payload: dict, fields: tuple[str, ...]) -> tuple:
+    return tuple(payload.get(field) for field in fields)
+
+
+def write_merged_jsonl_gz(samples: Path, backfill: Path, dest: Path) -> tuple[int, int]:
+    """Write ``samples.jsonl`` + the backfill lines whose sample key is new.
+
+    Equivalent to ``load_run_sample_records`` (which keeps the first record per
+    ``(keyword, prompt_style, effort, sample_index)``, samples before backfill),
+    but keeps every published line byte for byte. Returns (samples_kept, backfill_added).
+    """
+    seen: set[tuple] = set()
+    kept = added = 0
+    with _open_gz_for_write(dest) as out:
+        for path, is_backfill in ((samples, False), (backfill, True)):
+            with path.open("rb") as src:
+                for line in src:
+                    if not line.strip():
+                        continue
+                    key = _key(json.loads(line), DEDUP_KEY_FIELDS)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    out.write(line if line.endswith(b"\n") else line + b"\n")
+                    if is_backfill:
+                        added += 1
+                    else:
+                        kept += 1
+    return kept, added
+
+
+def write_row_keys_gz(samples: Path, npy: Path, dest: Path) -> int:
+    """Write one ``ROW_KEY_FIELDS`` object per line of an embedder's ``samples.jsonl``."""
+    n_rows = np.load(npy, mmap_mode="r").shape[0]
+    n = 0
+    with samples.open("rb") as src, _open_gz_for_write(dest) as out:
+        for line in src:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            row = {field: payload.get(field) for field in ROW_KEY_FIELDS}
+            out.write((json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8"))
+            n += 1
+    if n != n_rows:
+        dest.unlink()
+        raise ValueError(f"{samples} has {n} records but {npy} has {n_rows} rows")
+    return n
 
 
 def write_npy(source: Path, dest: Path) -> None:
@@ -277,6 +385,11 @@ def execute(planned: list[PlannedFile], out_dir: Path) -> None:
         dest = out_dir / item.dest_rel
         if item.kind == "jsonl-gz":
             write_jsonl_gz(item.source, dest)
+        elif item.kind == "jsonl-merge-gz":
+            kept, added = write_merged_jsonl_gz(item.source, item.extra_source, dest)
+            print(f"  merged {item.dest_rel}: {kept} samples + {added} backfill")
+        elif item.kind == "row-keys":
+            write_row_keys_gz(item.source, item.extra_source, dest)
         else:
             write_npy(item.source, dest)
 
@@ -325,6 +438,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Destination directory for the packaged dataset (default: %(default)s).",
     )
     parser.add_argument(
+        "--categories",
+        nargs="+",
+        choices=CATEGORIES,
+        default=list(CATEGORIES),
+        help="Only plan/write these file categories (default: all).",
+    )
+    parser.add_argument(
         "--dry-run",
         dest="dry_run",
         action="store_true",
@@ -350,7 +470,7 @@ def main() -> None:
     print(f"out-dir:     {out_dir}")
     print(f"mode:        {'dry run' if dry_run else 'write'}\n")
 
-    planned = build_plan(source_root)
+    planned = [item for item in build_plan(source_root) if item.category in set(args.categories)]
 
     if dry_run:
         print_plan(planned)

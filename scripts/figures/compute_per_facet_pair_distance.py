@@ -1,11 +1,16 @@
 """Compute per-(model, facet, effort) within-keyword pair distance.
 
-Loads each model's `samples.jsonl` (one line per sample, in row order matching
-`embeddings.npy` / `embeddings_<facet>.npy`), groups rows by (keyword, effort),
-computes the within-group cosine pair-distance mean, and writes:
+Loads each (model, embedder) `samples.jsonl` from the embedder directory (one
+line per sample, in row order matching that directory's `embeddings.npy` /
+`embeddings_<facet>.npy`), groups rows by (keyword, effort), computes the
+within-group cosine pair-distance mean, and writes:
 
-- `outputs/tables/cache/pair_distances_<model>_<facet>_<effort>.npy` :
-    flat array of within-keyword pair distances (one entry per pair).
+- `outputs/tables/cache/pair_distances_<model>_<embedding>_<facet>_<effort>.npy` :
+    flat array of within-keyword pair distances (one entry per pair), with a
+    `.meta.json` sidecar holding a fingerprint of the inputs (path, size and
+    mtime of `samples.jsonl` and the array, plus the row order). A cache file
+    is reused only when the fingerprint matches, so re-materialized or
+    re-ordered inputs are never silently served stale distances.
 - `outputs/tables/per_facet_pair_distance_summary.csv` :
     aggregate (mean over all pooled pairs) per (model, facet, effort) cell.
 - `outputs/tables/table2_per_facet_distance_low_high.csv` :
@@ -14,6 +19,7 @@ computes the within-group cosine pair-distance mean, and writes:
     per-facet x per-embedding cross-check table for the appendix.
 """
 import csv
+import hashlib
 import json
 from itertools import combinations
 from pathlib import Path
@@ -58,17 +64,27 @@ def facet_emb_path(run_dir: Path, facet: str, embedding_subdir: str) -> Path:
     return sub / f"embeddings_{facet}.npy"
 
 
-def samples_path(run_dir: Path) -> Path:
-    return run_dir / PRIMARY_EMBEDDING / "samples.jsonl"
+def samples_path(run_dir: Path, embedding_subdir: str) -> Path:
+    return run_dir / embedding_subdir / "samples.jsonl"
 
 
-def load_keyword_effort(run_dir: Path) -> list[tuple[str, str]]:
+def load_keyword_effort(path: Path) -> list[tuple[str, str]]:
     rows = []
-    with samples_path(run_dir).open() as f:
+    with path.open() as f:
         for line in f:
             r = json.loads(line)
             rows.append((r["keyword"], r["effort"]))
     return rows
+
+
+def input_fingerprint(samples: Path, emb_path: Path, kw_eff: list[tuple[str, str]]) -> str:
+    """Hash of everything a cached pair-distance array depends on."""
+    h = hashlib.sha256()
+    for path in (samples, emb_path):
+        st = path.stat()
+        h.update(f"{path.resolve()}|{st.st_size}|{st.st_mtime_ns}\n".encode())
+    h.update(json.dumps(kw_eff).encode())
+    return h.hexdigest()
 
 
 def cosine_distance_matrix(X: np.ndarray) -> np.ndarray:
@@ -93,11 +109,18 @@ def pair_distances_for_cell(emb: np.ndarray, indices: list[int]) -> np.ndarray:
 
 def compute_pair_distances(model_key: str, embedding_key: str, facet: str,
                            effort: str, emb: np.ndarray,
-                           kw_eff: list[tuple[str, str]]) -> np.ndarray:
+                           kw_eff: list[tuple[str, str]],
+                           fingerprint: str) -> np.ndarray:
     safe_emb = embedding_key.replace(":", "-").replace(" ", "-").replace("/", "-")
     cache = CACHE_DIR / f"pair_distances_{model_key}_{safe_emb}_{facet}_{effort}.npy"
-    if cache.exists():
-        return np.load(cache)
+    meta = cache.with_suffix(".meta.json")
+    if cache.exists() and meta.exists():
+        try:
+            cached_fingerprint = json.loads(meta.read_text()).get("fingerprint")
+        except (OSError, ValueError):
+            cached_fingerprint = None
+        if cached_fingerprint == fingerprint:
+            return np.load(cache)
     by_keyword: dict[str, list[int]] = {}
     for idx, (kw, eff) in enumerate(kw_eff):
         if eff != effort:
@@ -111,23 +134,27 @@ def compute_pair_distances(model_key: str, embedding_key: str, facet: str,
     else:
         arr = np.concatenate(chunks)
     np.save(cache, arr)
+    meta.write_text(json.dumps({"fingerprint": fingerprint}) + "\n")
     return arr
 
 
 def main() -> None:
     summary_rows = []
     for model_key, run_dir in RUNS.items():
-        kw_eff = load_keyword_effort(run_dir)
         for embedding_key, embedding_subdir in EMBEDDING_DIRS.items():
+            samples = samples_path(run_dir, embedding_subdir)
+            kw_eff = load_keyword_effort(samples)
             for facet in FACETS:
-                emb = np.load(facet_emb_path(run_dir, facet, embedding_subdir))
+                emb_path = facet_emb_path(run_dir, facet, embedding_subdir)
+                emb = np.load(emb_path)
                 assert emb.shape[0] == len(kw_eff), (
                     f"{model_key}/{embedding_key}/{facet}: "
                     f"rows={emb.shape[0]} but samples={len(kw_eff)}"
                 )
+                fingerprint = input_fingerprint(samples, emb_path, kw_eff)
                 for effort in EFFORTS_PER_MODEL[model_key]:
                     arr = compute_pair_distances(
-                        model_key, embedding_key, facet, effort, emb, kw_eff
+                        model_key, embedding_key, facet, effort, emb, kw_eff, fingerprint
                     )
                     summary_rows.append({
                         "model": MODEL_LABEL[model_key],
@@ -140,7 +167,7 @@ def main() -> None:
                         "median": float(np.median(arr)) if arr.size else float("nan"),
                     })
 
-    summary_csv = CACHE_DIR / "per_facet_pair_distance_summary.csv"
+    summary_csv = DATA_DIR / "per_facet_pair_distance_summary.csv"
     with summary_csv.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=summary_rows[0].keys())
         w.writeheader()

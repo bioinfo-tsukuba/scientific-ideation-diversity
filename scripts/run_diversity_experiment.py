@@ -42,6 +42,7 @@ from src.artifacts import (
     append_jsonl,
     clone_records_for_embedding,
     copy_cached_embedding_artifacts_to_writer,
+    load_published_embedding_matrix,
     load_sample_records,
     materialize_generation_artifacts,
     save_pca_coordinates,
@@ -800,6 +801,11 @@ def embed_records(
     embed_max_concurrency: int,
     backend: EmbeddingBackend,
 ) -> np.ndarray:
+    # Published (Hugging Face) data ships embeddings.npy without
+    # embedding_responses.jsonl; reuse the array when its rows line up.
+    published = load_published_embedding_matrix(output_dir=spec.output_dir, records=records)
+    if published is not None:
+        return published
 
     writer = EmbeddingArtifactWriter(
         embeddings_path=spec.output_dir / "embeddings.npy",
@@ -856,6 +862,14 @@ def embed_field(
     responses_filename = f"embedding_responses_{component}.jsonl"
     embeddings_path = spec.output_dir / embeddings_filename
     responses_path = spec.output_dir / responses_filename
+    published = load_published_embedding_matrix(
+        output_dir=spec.output_dir,
+        records=records,
+        embeddings_filename=embeddings_filename,
+        responses_filename=responses_filename,
+    )
+    if published is not None:
+        return published
     if embeddings_path.exists():
         existing = np.load(embeddings_path, mmap_mode="r")
         if existing.shape[0] == len(records):

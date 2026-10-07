@@ -439,6 +439,106 @@ def copy_cached_embedding_artifacts_to_writer(
     return copied_indices
 
 
+# Row-order index for a published embedding directory. One JSON object per
+# row of ``embeddings*.npy`` (all arrays in an embedder directory share the same
+# row order), written by ``tools/materialize_hf_dataset.py``. The public dataset
+# ships the ``.npy`` arrays but not ``embedding_responses*.jsonl`` (which carry
+# the raw API responses), so this file is what lets a resumed run prove that a
+# published array lines up with its sample records before reusing it.
+EMBEDDING_ROW_KEYS_FILENAME = "embedding_row_keys.jsonl"
+ROW_KEY_FIELDS = ("category", "keyword", "prompt_style", "effort", "sample_index")
+
+
+def row_key_from_payload(payload: dict[str, Any]) -> tuple[str, str, str, str, int]:
+    """Identity of one sample: (category, keyword, prompt_style, effort, sample_index)."""
+    effort = payload["effort"]
+    effort = effort.value if hasattr(effort, "value") else str(effort)
+    prompt_style = payload.get("prompt_style") or ""
+    prompt_style = prompt_style.value if hasattr(prompt_style, "value") else str(prompt_style)
+    return (
+        payload.get("category") or "",
+        payload["keyword"],
+        prompt_style,
+        effort,
+        int(payload["sample_index"]),
+    )
+
+
+def record_row_key(record: SampleRecord) -> tuple[str, str, str, str, int]:
+    return row_key_from_payload(
+        {
+            "category": record.category,
+            "keyword": record.keyword,
+            "prompt_style": record.prompt_style,
+            "effort": record.effort,
+            "sample_index": record.sample_index,
+        }
+    )
+
+
+def load_row_keys(path: Path) -> list[tuple[str, str, str, str, int]]:
+    with open(path, encoding="utf-8") as f:
+        return [row_key_from_payload(json.loads(line)) for line in f if line.strip()]
+
+
+def load_published_embedding_matrix(
+    *,
+    output_dir: Path,
+    records: list[SampleRecord],
+    embeddings_filename: str = "embeddings.npy",
+    responses_filename: str = "embedding_responses.jsonl",
+) -> Optional[np.ndarray]:
+    """Reuse a published ``.npy`` that has no ``embedding_responses*.jsonl`` sibling.
+
+    Returns ``None`` when the normal response-keyed cache applies (no array, or
+    the responses file exists). Otherwise the array is returned only if its rows
+    provably line up with ``records``:
+
+    - with ``embedding_row_keys.jsonl`` present, the per-row keys must equal the
+      record keys in order;
+    - without it, the row count must equal ``len(records)`` (the published
+      arrays are in the canonical ``sort_sample_records`` order).
+
+    Any mismatch raises instead of silently re-embedding: the caller is in
+    resume mode on published data, where an API call is never intended. Delete
+    the array to force recomputation.
+    """
+    embeddings_path = output_dir / embeddings_filename
+    if not embeddings_path.exists() or (output_dir / responses_filename).exists():
+        return None
+    embeddings = np.load(embeddings_path, mmap_mode="r")
+    keys_path = output_dir / EMBEDDING_ROW_KEYS_FILENAME
+    if keys_path.exists():
+        row_keys = load_row_keys(keys_path)
+        if len(row_keys) != embeddings.shape[0]:
+            raise ValueError(
+                f"{keys_path} has {len(row_keys)} rows but {embeddings_path} has {embeddings.shape[0]}"
+            )
+        wanted = [record_row_key(r) for r in records]
+        if row_keys != wanted:
+            first = next(
+                (i for i, (a, b) in enumerate(zip(row_keys, wanted)) if a != b),
+                min(len(row_keys), len(wanted)),
+            )
+            raise ValueError(
+                f"Published embeddings in {embeddings_path} do not line up with the "
+                f"{len(records)} sample records ({len(row_keys)} rows; first differing row {first}). "
+                "Refusing to reuse them or to re-embed. Delete the array to recompute it."
+            )
+    elif embeddings.shape[0] != len(records):
+        raise ValueError(
+            f"Published embeddings in {embeddings_path} have {embeddings.shape[0]} rows but there are "
+            f"{len(records)} sample records, and no {EMBEDDING_ROW_KEYS_FILENAME} to align them. "
+            "Refusing to reuse them or to re-embed. Delete the array to recompute it."
+        )
+    print(
+        f"[embed-cache] reusing published {embeddings_path} rows={embeddings.shape[0]} "
+        f"(no {responses_filename}; row keys {'verified' if keys_path.exists() else 'unchecked'})",
+        flush=True,
+    )
+    return embeddings
+
+
 def write_matrix_csv(path: Path, header: list[str], rows: list[list[str | float]]) -> None:
     with open(path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)

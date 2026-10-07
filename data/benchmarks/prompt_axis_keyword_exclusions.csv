@@ -1,0 +1,2 @@
+generation_model,keyword,reason
+GPT-5.4,bioterrorism,"OpenAI safety refusals under SSoT (gpt54_ssot_low: 10/30 ideas, gpt54_ssot_high: 0/30); dropped from every GPT-5.4 prompt-axis analysis so all cells share one 99-keyword Q1/Q4 support (49 Q1 + 50 Q4)"
