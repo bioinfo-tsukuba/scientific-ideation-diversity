@@ -97,7 +97,9 @@ def main() -> int:
             raise SystemExit(
                 f"Model {model_name!r} has {len(model_rows)} rows in input; "
                 f"expected {expected} (Q_1 + Q_4 = 50 + 50, GPT-5.4 has 49 + 50 "
-                f"due to bioterrorism safety refusal under SSoT — see paper §3.6)."
+                f"due to bioterrorism safety refusal under SSoT — see paper §3.6). "
+                f"Rebuild the input with select_per_model_q1_q4.py (without --no-exclusions); "
+                f"it applies data/benchmarks/prompt_axis_keyword_exclusions.csv."
             )
 
         out_path = output_dir / f"q1q4_{slug}.csv"

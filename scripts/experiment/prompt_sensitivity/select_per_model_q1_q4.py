@@ -23,6 +23,14 @@ Outputs one CSV per model with columns:
   category, keyword, baseline_pair_distance, stratum, generation_model
 where stratum ∈ {Q1, Q4}.
 
+Keyword exclusions: after sampling, rows listed in
+``data/benchmarks/prompt_axis_keyword_exclusions.csv`` (``generation_model``,
+``keyword``, ``reason``) are dropped. The sampling itself is unchanged, so the
+other 99 GPT-5.4 keywords are the same draw. The paper's prompt-axis numbers
+use the excluded set: GPT-5.4 has 99 keywords (49 Q1 + 50 Q4) because
+``bioterrorism`` was refused under SSoT. ``--no-exclusions`` writes the raw
+100-keyword draw instead.
+
 Usage:
     uv run python scripts/experiment/prompt_sensitivity/select_per_model_q1_q4.py \\
         --phase2-root results/effort_diversity \\
@@ -34,6 +42,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import logging
 from pathlib import Path
 
@@ -55,6 +64,15 @@ PHASE2_DIRS: dict[str, str] = {
 # comparison with §4.2's effort gain Q1/Q4 ratio.
 BASELINE_EFFORT = "low"
 EMBEDDING_SUBDIR = "text-embedding-3-large"
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_EXCLUSIONS_CSV = REPO_ROOT / "data" / "benchmarks" / "prompt_axis_keyword_exclusions.csv"
+
+
+def load_exclusions(path: Path) -> set[tuple[str, str]]:
+    """(generation_model, keyword) pairs to drop after sampling."""
+    with path.open(encoding="utf-8") as f:
+        return {(row["generation_model"], row["keyword"]) for row in csv.DictReader(f)}
 
 
 def select_for_model(
@@ -128,7 +146,19 @@ def main() -> int:
         type=Path,
         default=Path("results/effort_diversity/prompt_sensitivity"),
     )
+    parser.add_argument(
+        "--exclusions-csv",
+        type=Path,
+        default=DEFAULT_EXCLUSIONS_CSV,
+        help="(generation_model, keyword) pairs dropped after sampling (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--no-exclusions",
+        action="store_true",
+        help="Keep the raw draw (GPT-5.4 then has 100 keywords, including bioterrorism).",
+    )
     args = parser.parse_args()
+    exclusions = set() if args.no_exclusions else load_exclusions(args.exclusions_csv)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -141,6 +171,15 @@ def main() -> int:
             seed=args.seed,
         )
         df["generation_model"] = model_name
+        drop = df["keyword"].map(lambda kw: (model_name, kw) in exclusions)
+        if drop.any():
+            logger.info(
+                "[%s] excluded %s (%s)",
+                model_name,
+                ", ".join(f"{kw} [{st}]" for kw, st in zip(df.loc[drop, "keyword"], df.loc[drop, "stratum"])),
+                args.exclusions_csv,
+            )
+            df = df[~drop].reset_index(drop=True)
         per_model_path = args.output_dir / f"q1_q4_{run_subdir.split('_')[1]}.csv"
         df.to_csv(per_model_path, index=False)
         logger.info(

@@ -86,11 +86,19 @@ class OpenAIEmbeddingBackend(EmbeddingBackend):
     ) -> None:
         self.embedding_model = embedding_model
         self.batch_size = batch_size
-        self._client = openai.OpenAI(max_retries=5)
+        # Created on first use, so resume runs that only reuse cached /
+        # published embeddings never need OPENAI_API_KEY.
+        self._client: Optional[openai.OpenAI] = None
         try:
             self._encoder = tiktoken.encoding_for_model(embedding_model.value)
         except KeyError:
             self._encoder = tiktoken.get_encoding("cl100k_base")
+
+    @property
+    def client(self) -> openai.OpenAI:
+        if self._client is None:
+            self._client = openai.OpenAI(max_retries=5)
+        return self._client
 
     def embed_records_streaming(
         self,
@@ -138,7 +146,7 @@ class OpenAIEmbeddingBackend(EmbeddingBackend):
                     batch_texts,
                     batch_indices,
                     embedding_model=self.embedding_model,
-                    client=self._client,
+                    client=self.client,
                     encoder=self._encoder,
                 ): (batch_texts, batch_indices)
                 for batch_texts, batch_indices in batches

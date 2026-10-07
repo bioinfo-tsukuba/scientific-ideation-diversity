@@ -8,7 +8,11 @@ from typing import Optional
 
 import numpy as np
 
-from src.artifacts import EmbeddingArtifactWriter, copy_cached_embedding_artifacts_to_writer
+from src.artifacts import (
+    EmbeddingArtifactWriter,
+    copy_cached_embedding_artifacts_to_writer,
+    load_published_embedding_matrix,
+)
 from src.model_registry import (
     DEFAULT_SPECTER2_BATCH_SIZE,
     EMBEDDING_MODEL_PROVIDER,
@@ -107,8 +111,15 @@ def embed_records(
     *output_dir* are reused if they match *embedding_model*; only the
     missing rows are forwarded to the backend.
 
+    A published ``embeddings.npy`` without ``embedding_responses.jsonl`` (the
+    Hugging Face dataset layout) is reused as-is when its rows line up with
+    *records*; see :func:`src.artifacts.load_published_embedding_matrix`.
+
     Returns the final ``(n_records, dim)`` embedding matrix loaded from disk.
     """
+    published = load_published_embedding_matrix(output_dir=output_dir, records=records)
+    if published is not None:
+        return published
     backend = create_embedding_backend(
         embedding_model=embedding_model,
         provider=provider,

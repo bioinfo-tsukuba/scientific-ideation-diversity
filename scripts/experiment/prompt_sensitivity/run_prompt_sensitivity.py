@@ -443,8 +443,12 @@ def main() -> int:
     parser.add_argument(
         "--kw-subset",
         type=Path,
-        required=True,
-        help="CSV with at least 'keyword' and 'category' columns.",
+        default=None,
+        help=(
+            "CSV with at least 'keyword' and 'category' columns. Required for a fresh run "
+            "and for --resume-generation-output-dir; unused (and optional) with "
+            "--resume-output-dir, which reads the keywords from samples.jsonl."
+        ),
     )
     parser.add_argument(
         "--samples-per-effort",
@@ -500,12 +504,14 @@ def main() -> int:
         parser.error("Specify at most one of --resume-output-dir and --resume-generation-output-dir.")
     if args.output_dir is None and resume_modes == 0:
         parser.error("--output-dir is required for a fresh run (or pass one of the --resume-*-output-dir flags).")
+    if args.kw_subset is None and args.resume_output_dir is None:
+        parser.error("--kw-subset is required unless --resume-output-dir is given.")
 
     idea_model, provider = MODEL_TO_PROVIDER[args.model]
     effort = EffortName(args.effort)
 
-    keyword_rows = load_keyword_rows(args.kw_subset)
-    if not keyword_rows:
+    keyword_rows = load_keyword_rows(args.kw_subset) if args.kw_subset is not None else []
+    if args.kw_subset is not None and not keyword_rows:
         raise ValueError(f"no keywords in {args.kw_subset}")
 
     # Three modes (mirrors scripts/run_diversity_experiment.py main()):

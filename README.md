@@ -73,11 +73,27 @@ See [REPRODUCING.md](REPRODUCING.md) for the mapping from each paper item
 **Status:** the end-to-end reproduction pipeline (raw data → all figures) is
 being verified; please open an issue if a step fails.
 
-1. **Download the dataset** from Hugging Face (see [Dataset](#dataset) above)
+1. **Check out LiveIdeaBench** (keywords and judge prompts) at the commit
+   pinned in `data/benchmarks/liveideabench_manifest.json`. It is not vendored
+   and not a git submodule; the scripts expect it at `external/liveideabench`:
+
+   ```bash
+   git clone https://github.com/x66ccff/liveideabench external/liveideabench
+   git -C external/liveideabench checkout fc95111c7920cb4ca02e27f5ab9730f3886ca07c
+   ```
+
+   The sha256 of `csvs/keyword_classifications.csv`, `csvs/kws.csv` and
+   `utils/prompts.json` must match the manifest.
+2. **Download the dataset** from Hugging Face (see [Dataset](#dataset) above)
    into a local directory, e.g. `./hf_dataset_out` — the same layout
-   `tools/package_hf_dataset.py` produces.
-2. **Materialize it into the internal layout** the analysis scripts expect,
-   under `results/effort_diversity/`:
+   `tools/package_hf_dataset.py` produces (about 39 GB):
+
+   ```bash
+   uv run hf download tax-free/scientific-ideation-diversity --repo-type dataset --local-dir ./hf_dataset_out
+   ```
+3. **Materialize it into the internal layout** the analysis scripts expect,
+   under `results/effort_diversity/` (about 80 GB, including a row-ordered
+   `samples.jsonl` copy per embedder directory):
 
    ```bash
    uv run python tools/materialize_hf_dataset.py --dataset-dir ./hf_dataset_out --no-dry-run
@@ -85,7 +101,7 @@ being verified; please open an issue if a step fails.
 
    (Omit `--no-dry-run` first to preview the file plan; nothing is written
    until you pass it.)
-3. **Follow [REPRODUCING.md](REPRODUCING.md)**: run its "Stage 0" table top to
+4. **Follow [REPRODUCING.md](REPRODUCING.md)**: run its "Stage 0" table top to
    bottom to rebuild every intermediate CSV the figure/table scripts need
    from the raw dataset, then run the per-item rows for the specific
    figure/table/statistic you want to reproduce. The `scripts/figures/`
