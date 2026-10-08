@@ -70,8 +70,12 @@ See [REPRODUCING.md](REPRODUCING.md) for the mapping from each paper item
 
 ## Reproducing the paper
 
-**Status:** the end-to-end reproduction pipeline (raw data → all figures) is
-being verified; please open an issue if a step fails.
+**Status:** verified end to end on 2026-10-07 on a clean clone: every Stage 0
+and per-item step runs from the public dataset, and the regenerated numbers
+match the paper (see the notes at the end of REPRODUCING.md). The Claude
+reasoning-token step calls the Anthropic `count_tokens` API and needs an
+`ANTHROPIC_API_KEY`; its recomputed counts matched the original analysis
+exactly. Please open an issue if a step fails.
 
 1. **Check out LiveIdeaBench** (keywords and judge prompts) at the commit
    pinned in `data/benchmarks/liveideabench_manifest.json`. It is not vendored
