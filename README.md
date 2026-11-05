@@ -143,7 +143,7 @@ To cite the dataset:
 
 ```bibtex
 @misc{chinen2026ideationdiversitydata,
-  title     = {scientific-ideation-diversity (dataset)},
+  title     = {scientific-ideation-diversity},
   author    = {Chinen, Yu and Ozaki, Haruka},
   publisher = {Hugging Face},
   year      = {2026},
