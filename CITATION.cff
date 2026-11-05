@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the paper below."
+title: "scientific-ideation-diversity"
+authors:
+  - family-names: Chinen
+    given-names: Yu
+  - family-names: Ozaki
+    given-names: Haruka
+repository-code: "https://github.com/bioinfo-tsukuba/scientific-ideation-diversity"
+license: MIT
+identifiers:
+  - type: doi
+    value: 10.57967/hf/10818
+    description: "Dataset on Hugging Face"
+preferred-citation:
+  type: conference-paper
+  title: "On the Effects of Reasoning Effort and Prompt-Based Diversification on Scientific Ideation Diversity"
+  authors:
+    - family-names: Chinen
+      given-names: Yu
+    - family-names: Ozaki
+      given-names: Haruka
+  collection-title: "Discovery Science: 29th International Conference, DS 2026, Mainz, Germany, October 5–9, 2026, Proceedings"
+  collection-type: proceedings
+  conference:
+    name: "Discovery Science 2026"
+  editors:
+    - family-names: Cerrato
+      given-names: Mattia
+    - family-names: van Rijn
+      given-names: Jan N.
+    - family-names: Kramer
+      given-names: Stefan
+  publisher:
+    name: Springer
+  start: 265
+  end: 279
+  year: 2026
+  doi: 10.1007/978-3-032-41086-3_18

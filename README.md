@@ -34,7 +34,7 @@ judge logs, and embeddings are released separately as a dataset (see below).
 The accompanying dataset (raw generations, LLM-judge logs, and embeddings) is
 hosted on Hugging Face, released under the CC BY 4.0 license:
 
-<https://huggingface.co/datasets/tax-free/scientific-ideation-diversity>
+<https://huggingface.co/datasets/tax-free/scientific-ideation-diversity> (doi:[10.57967/hf/10818](https://doi.org/10.57967/hf/10818))
 
 Analysis scripts expect the dataset to be materialised under `results/` at the
 repository root (`results/` is git-ignored). `tools/package_hf_dataset.py` is the
@@ -121,7 +121,7 @@ own attribution — see [NOTICE.md](NOTICE.md).
 
 ## Citation
 
-Page numbers and DOI will be added once the DS 2026 proceedings are published.
+Published in *Discovery Science (DS 2026)*, Lecture Notes in Computer Science, Springer, pp. 265–279. [doi:10.1007/978-3-032-41086-3_18](https://doi.org/10.1007/978-3-032-41086-3_18) · [Proceedings](https://link.springer.com/book/10.1007/978-3-032-41086-3)
 
 ```bibtex
 @inproceedings{chinen2026ideationdiversity,
@@ -131,7 +131,23 @@ Page numbers and DOI will be added once the DS 2026 proceedings are published.
   booktitle = {Discovery Science: 29th International Conference, DS 2026,
                Mainz, Germany, October 5--9, 2026, Proceedings},
   series    = {Lecture Notes in Computer Science},
+  editor    = {Cerrato, Mattia and van Rijn, Jan N. and Kramer, Stefan},
   publisher = {Springer},
+  pages     = {265--279},
   year      = {2026},
+  doi       = {10.1007/978-3-032-41086-3_18},
+}
+```
+
+To cite the dataset:
+
+```bibtex
+@misc{chinen2026ideationdiversitydata,
+  title     = {scientific-ideation-diversity},
+  author    = {Chinen, Yu and Ozaki, Haruka},
+  publisher = {Hugging Face},
+  year      = {2026},
+  doi       = {10.57967/hf/10818},
+  url       = {https://huggingface.co/datasets/tax-free/scientific-ideation-diversity},
 }
 ```
